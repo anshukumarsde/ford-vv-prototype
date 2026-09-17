@@ -1,0 +1,3 @@
+[
+  {"defect_id": "BUG-001", "test_id": "TEST-002", "title": "Low tire pressure warning does not appear", "severity": "HIGH", "status": "OPEN"}
+]

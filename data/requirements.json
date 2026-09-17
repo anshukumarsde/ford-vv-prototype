@@ -1,0 +1,5 @@
+[
+  {"requirement_id": "REQ-001", "title": "Lock doors when the driver requests locking", "release": "DEMO-1"},
+  {"requirement_id": "REQ-002", "title": "Display a warning when tire pressure is low", "release": "DEMO-1"},
+  {"requirement_id": "REQ-003", "title": "Display the rear camera view when reverse is selected", "release": "DEMO-1"}
+]

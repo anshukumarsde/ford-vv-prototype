@@ -1,0 +1,5 @@
+[
+  {"test_id": "TEST-001", "requirement_id": "REQ-001", "title": "Request door locking and verify all doors lock", "status": "PASS"},
+  {"test_id": "TEST-002", "requirement_id": "REQ-002", "title": "Simulate low tire pressure and verify the warning", "status": "FAIL"},
+  {"test_id": "TEST-003", "requirement_id": "REQ-001", "title": "Repeat a locking request and verify doors stay locked", "status": "NOT_RUN"}
+]
