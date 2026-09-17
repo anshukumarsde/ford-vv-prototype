@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.request import urlopen
 
 from data_quality import validate_data
+from integrations import fetch_vendor_data
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DATABASE_PATH = PROJECT_DIR / "vv.db"
@@ -44,6 +45,10 @@ def create_tables(connection):
         );
         CREATE INDEX IF NOT EXISTS idx_tests_requirement_id
             ON tests(requirement_id);
+        CREATE TABLE IF NOT EXISTS sync_metadata (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            loaded_at TEXT NOT NULL
+        );
     """)
 
 
@@ -66,6 +71,10 @@ def load_snapshot(connection, requirements, tests, defects):
             INSERT INTO defects (defect_id, test_id, title, severity, status)
             VALUES (:defect_id, :test_id, :title, :severity, :status)
         """, defects)
+        connection.execute("""
+            INSERT OR REPLACE INTO sync_metadata (id, loaded_at)
+            VALUES (1, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        """)
 
 
 def find_uncovered_requirements(connection):
@@ -78,9 +87,13 @@ def find_uncovered_requirements(connection):
     """).fetchall()
 
 
-def main(api_url=None):
+def main(api_url=None, vendor_mocks=False):
     try:
-        if api_url:
+        if vendor_mocks:
+            if not api_url:
+                raise ValueError("Vendor mock mode requires --api-url")
+            requirements, tests, defects = fetch_vendor_data(api_url, fetch_records)
+        elif api_url:
             requirements = fetch_records(api_url, "/requirements")
             tests = fetch_records(api_url, "/tests")
             defects = fetch_records(api_url, "/defects")
@@ -88,7 +101,7 @@ def main(api_url=None):
             requirements = read_records("requirements.json")
             tests = read_records("tests.json")
             defects = read_records("defects.json")
-    except (OSError, ValueError) as error:
+    except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"Could not read source data: {error}")
         print("Database not changed.")
         return 1
@@ -120,5 +133,6 @@ def main(api_url=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--api-url", help="Read from this API instead of local files")
+    parser.add_argument("--vendor-mocks", action="store_true", help="Use local vendor-shaped endpoints")
     args = parser.parse_args()
-    raise SystemExit(main(args.api_url))
+    raise SystemExit(main(args.api_url, args.vendor_mocks))

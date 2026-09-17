@@ -4,7 +4,7 @@ A small learning project for explaining requirements, testing, traceability, and
 
 ## Step 1: Define the data and its relationships
 
-The goal of this step is to answer three questions using a small, readable dataset: which requirements have tests, which tests failed, and which defects relate to those failures. Step 1 creates the JSON files, Step 2 adds SQLite, Step 3 adds validation, and Step 4 adds a local API. A dashboard is still a future step.
+The goal of this step is to answer three questions using a small, readable dataset: which requirements have tests, which tests failed, and which defects relate to those failures. Step 1 creates the JSON files, Step 2 adds SQLite, Step 3 adds validation, and Step 4 adds a local API. Steps 5 and 6 below add vendor-shaped mocks and a browser dashboard.
 
 This supports the job description's focus on **test data standardization** and **requirements-to-test traceability**. Defining consistent fields and links first gives later integrations and reports a common structure.
 
@@ -236,9 +236,103 @@ Stop the server with Ctrl+C in terminal 1. Running the API load again should rep
 
 “I added a local REST API to simulate engineering tools. The loader requests requirements, tests, and defects over HTTP, validates the returned JSON, and loads the same reporting database. I kept data retrieval separate from validation and SQL so both file and API inputs reuse the same processing logic.”
 
-## Next increments
+## Step 5: Mock vendor formats and map them into our schema
 
-1. Add safe retries and sync outcome reporting.
-2. Build a dashboard with clearly defined metrics and supporting detail.
+**Why:** real tools return different field names, nesting, identifiers, and pagination formats. An integration needs to translate them before validation and reporting.
 
-Steps 1 through 4 are implemented. Each increment includes the reason for the change, a small verification, and an interview explanation. Ford's L2/L3/L4 definitions would need to be confirmed before modeling those testing levels.
+`vendor_mocks.py` converts the existing fictional JSON records into small vendor-shaped responses. `integrations.py` fetches each page and translates the responses back into our shared schema. The old file mode and simple API mode still work. No dependencies were added.
+
+| Mock endpoint | Pattern demonstrated | Mapping into this demo |
+| --- | --- | --- |
+| `/mock/jama/rest/v1/items?startAt=0&maxResults=2` | `data`, `fields`, and `meta.pageInfo` with indexed pagination | `documentKey` becomes requirement ID; `fields.name` becomes title. |
+| `/mock/testrail/index.php?/api/v2/get_tests/1&offset=0&limit=2` | Tests in run 1, numeric status IDs, references, and `_links.next` | `refs` becomes requirement ID; statuses 1, 2, 3, 5 become PASS, BLOCKED, NOT_RUN, FAIL. |
+| `/mock/jira/rest/api/3/search/jql?maxResults=2` | Issue keys, nested `fields`, and `nextPageToken` pagination | `key` becomes defect ID; `summary` becomes title; workflow names map to our statuses. |
+
+Pages contain at most two records by default so even the small sample exercises pagination. Repeated page locations stop the adapter rather than looping forever. Unknown status mappings and multiple requirement references stop the load rather than being guessed or silently discarded.
+
+### What is realistic and what is simulated?
+
+The response structures and pagination patterns are based on the [Jama-maintained Python client](https://jamasoftware-ps.github.io/py-jama-rest-client/py_jama_rest_client/client.html), [TestRail tests API](https://support.testrail.com/hc/en-us/articles/7077990441108-Tests), and [Jira Cloud issue search API](https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/).
+
+These are documented subsets, not complete vendor emulators or live connectors:
+
+- `/mock/jama`, `/mock/testrail`, and `/mock/jira` are local routing prefixes, not vendor URLs.
+- Jama `release_demo`, TestRail `custom_source_id`, and Jira `customfield_10001` are demo field conventions. TestRail's numeric test ID and case ID are shown separately; the custom field preserves this project's existing `TEST-001` identifiers.
+- Jira priority is used as a severity proxy only for this demo. Real priorities and defect severity may be different fields. Workflow names and custom fields vary by organization.
+- The mock returns all sample Jira issues and Jama items; it does not evaluate JQL or project filters. TestRail exposes only run 1 and current test statuses, not execution history.
+- No credentials, authentication, permissions, retries, rate-limit simulation, or live writes are implemented. The original JSON files remain the mock source of truth.
+- To connect real systems, configure separate service URLs and approved authentication, discover project/run and custom-field IDs, define mappings and scope filters, and add robust contract tests against those environments. Changing only the base URL is not sufficient.
+
+### Run the vendor mock load
+
+Restart `api.py` if it is already running, so it picks up the new routes. In terminal 1:
+
+```powershell
+.\.venv\Scripts\python.exe api.py
+```
+
+In terminal 2:
+
+```powershell
+.\.venv\Scripts\python.exe load_data.py --api-url http://127.0.0.1:8000 --vendor-mocks
+```
+
+Expected result: the same three requirements, three tests, one defect, and `REQ-003` coverage gap. All pages from all three services are collected and validated before the database is refreshed.
+
+Interview explanation: “I isolated tool-specific response formats in adapters. Each adapter handles pagination and maps fields into a common model, so validation and reporting do not depend on which system supplied the data.”
+
+## Step 6: Mock BI dashboard and release-readiness report
+
+**Why:** counts need definitions and supporting records to help someone decide what still needs attention.
+
+Open <http://127.0.0.1:8000/dashboard> after starting the API and loading the data. The same server now serves `dashboard.html` and a read-only `/report` endpoint. `reporting.py` reads SQLite in one consistent snapshot, scopes records to the selected release, and builds the metrics and readiness checks.
+
+The dashboard offers:
+
+- Release selection and cards for requirements, coverage, execution, pass rate, and open defects.
+- Horizontal coverage and test-status charts with numeric labels.
+- Explicit pass/block reasons for every readiness rule.
+- Details for uncovered requirements, tests needing attention, and open defects.
+- Searchable requirement-to-test-to-defect traceability and a CSV export of all traceability rows in the selected release scope. The text search only filters the visible table, not the export.
+- The last successful load timestamp and a manual Refresh report button. Refresh reads SQLite; rerun the loader first to ingest changes to the source files.
+
+### Metric definitions and sample values
+
+| Metric | Definition | Existing sample |
+| --- | --- | --- |
+| Requirement coverage | Distinct requirements with linked tests / in-scope requirements | 2 / 3 = 66.7% |
+| Test execution | PASS plus FAIL / planned tests | 2 / 3 = 66.7% |
+| Pass rate | PASS / executed tests | 1 / 2 = 50% |
+| Open defects | Defects whose status is not CLOSED, including IN_PROGRESS | 1 |
+
+BLOCKED and NOT_RUN are incomplete under this demo's execution definition. Zero denominators display N/A. Metrics are calculated from entity records, not the expanded traceability join, so multiple defects do not inflate test counts.
+
+### Demo readiness rules
+
+Every rule must pass:
+
+1. At least one requirement and one planned test exist in scope.
+2. Every requirement has a linked test.
+3. Every planned test passed; failed, blocked, or unrun tests prevent readiness.
+4. No HIGH or CRITICAL defect remains OPEN or IN_PROGRESS.
+5. The loaded snapshot passes field/link validation, and scoped defect severities are recognized as LOW, MEDIUM, HIGH, or CRITICAL.
+
+The original sample correctly displays **NOT READY UNDER DEMO RULES**. Its blockers are the uncovered camera requirement, one failed test, one unrun test, and an open HIGH defect. A missing database shows instructions rather than a ready result; an empty or unknown release scope is not ready. The load timestamp is informational and is stored in the same transaction as the refreshed data. No age-based readiness policy is assumed.
+
+These are illustrative rules, not Ford policy, formal compliance certification, or a complete release approval process. A recent load does not prove recent source executions. The prototype still lacks requirements baselines, execution history, evidence attachments, risk acceptance, sign-offs, and Ford-specific L2/L3/L4 and DVP&R criteria. This is a custom BI-style browser dashboard, not an actual Power BI report.
+
+### Verify this increment
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest -v
+```
+
+Tests cover vendor pagination and mapping over real local HTTP, the report endpoint, sample KPIs, release filtering, multiple defects per test, ready and blocked states, empty scopes, informational load timestamps, and rejected status mappings. Source files are not changed by these tests.
+
+Interview explanation: “I built a reporting layer with explicit metric denominators and release-readiness rules. Users can filter by release and inspect the requirements, tests, and defects behind each result. A dashboard refresh reads the latest successfully loaded snapshot, while the integration handles fetching and validating source data.”
+
+## Optional future increments
+
+The prototype deliberately uses manual dashboard refresh and no arbitrary freshness cutoff. Vendor-specific adapters stay separate because each service has a different format. Transactions, validation, pagination guards, and tests protect correctness without adding frameworks or dependencies.
+
+Add bounded retries, authenticated live adapters, execution history, and organization-approved release rules as needed. Steps 1 through 6 are implemented; the previously discussed retry step remains optional and is not implemented.
