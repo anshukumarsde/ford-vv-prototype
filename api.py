@@ -1,7 +1,7 @@
 """Serve fictional V&V records over HTTP for local learning."""
 
 import json
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 from load_data import read_records
@@ -33,7 +33,7 @@ class SampleAPIHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    with HTTPServer(("127.0.0.1", 8000), SampleAPIHandler) as server:
+    with ThreadingHTTPServer(("127.0.0.1", 8000), SampleAPIHandler) as server:
         print("Sample API running at http://127.0.0.1:8000. Press Ctrl+C to stop.")
         try:
             server.serve_forever()
