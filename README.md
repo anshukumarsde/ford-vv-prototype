@@ -24,7 +24,7 @@ The relationship is **Requirement -> Test -> Defect**. IDs establish the links; 
 | `tests.json` | `test_id`: unique test identifier; `requirement_id`: requirement being checked; `title`: description of the check; `status`: current test outcome or execution state. |
 | `defects.json` | `defect_id`: unique defect identifier; `test_id`: test that exposed the problem; `title`: problem description; `severity`: seriousness of the problem; `status`: current defect workflow state. |
 
-These IDs are plain values in the JSON files. Step 2 adds database rules for unique IDs and valid links. More detailed data-quality reporting will follow later.
+These IDs are plain values in the JSON files. Step 2 adds database rules for unique IDs and valid links. Step 3 adds readable data-quality errors before loading.
 
 ### The exact sample relationships
 
@@ -61,7 +61,7 @@ No dependencies or running services are needed. Open the files in your editor an
 4. Search `tests.json` for `REQ-003`. It should have no matches, demonstrating missing coverage.
 5. Find both tests for `REQ-001`. One passed and one has not run, demonstrating that linked coverage does not guarantee completed testing.
 
-Expected totals: **3 requirements, 3 tests, 1 defect, and 1 uncovered requirement**. JSON parsing, record counts, valid links, and the expected coverage gap were checked when these files were created. Automated quality checks will be added in a later step.
+Expected totals: **3 requirements, 3 tests, 1 defect, and 1 uncovered requirement**. JSON parsing, record counts, valid links, and the expected coverage gap were checked when these files were created. Step 3 adds automated quality checks.
 
 ## Step 2: Load SQLite and query missing coverage
 
@@ -121,17 +121,85 @@ REQ-003: Display the rear camera view when reverse is selected
 
 Run it again: the counts and uncovered requirement should stay the same. `REQ-001` and `REQ-002` are covered because they have linked tests, even though one test has not run and another failed. This query measures linked coverage, not release readiness.
 
-If an input file is missing or contains invalid JSON, reading fails before the database load. If a record violates a database constraint, the script raises an error and rolls back that snapshot refresh. Detailed validation messages and status checks belong to the next step.
+If an input file is missing or contains invalid JSON, reading fails before the database load. If a record violates a database constraint during loading, the script raises an error and rolls back that snapshot refresh. Step 3 adds detailed validation messages and status checks before the connection is opened.
 
 ### How to explain this in an interview
 
 “I wrote a Python script to load requirements, tests, and defects into SQLite. Primary and foreign keys protect the identifiers and relationships. I load the data in one transaction, then use a LEFT JOIN to report requirements without tests. Rerunning refreshes the snapshot without creating duplicates.”
 
+## Step 3: Check data quality before loading
+
+**Goal:** identify bad input with actionable messages before it reaches SQLite. This supports the JD's test data standardization, compliance checks, and reduction of manual cleanup work.
+
+### What changed and why
+
+- `data_quality.py` adds `validate_data()`, which returns a list of problems without changing records or connecting to SQLite. Separating these checks lets a future API integration reuse them.
+- `load_data.py` calls the validator after reading the three files and before opening the database. If there are errors, it prints them together and exits with code `1`. Successful runs exit with code `0`, which future automation can use to detect success or failure.
+- `test_data_quality.py` checks valid data, invalid data, and the rule that rejected input never opens the database. It uses Python's built-in `unittest`; no new packages are needed.
+
+```text
+JSON files -> read records -> validate
+                                |
+                     errors ----+---- valid
+                       |                |
+                 print issues      load SQLite
+                 stop safely       report coverage
+```
+
+### Checks included
+
+| Check | Example rejected input | Why it matters |
+| --- | --- | --- |
+| File structure | A JSON object instead of an array, or a non-object row | The loader expects a list of records. |
+| Required fields | Missing, null, blank, or non-string ID, title, release, status, or severity where that field is required | Prevents incomplete records and incompatible field types. |
+| Duplicate IDs | Two tests both named `TEST-001` by their ID | Each entity needs a unique source identifier. IDs are checked separately for requirements, tests, and defects. |
+| Test statuses | `Passed` instead of `PASS` | Reports need consistent values: `PASS`, `FAIL`, `BLOCKED`, or `NOT_RUN`. |
+| Defect statuses | `DONE` instead of `CLOSED` | Allowed values are `OPEN`, `IN_PROGRESS`, and `CLOSED`. |
+| Test-to-requirement links | A test references `REQ-MISSING` | Traceability must point to an existing requirement in the input snapshot. |
+| Defect-to-test links | A defect references `TEST-MISSING` | Defects must point to an existing test in the input snapshot. |
+
+The validator uses sets to track IDs and check links rather than repeatedly scanning all parent records. Error messages identify the file, row number (starting at 1), and problem.
+
+Database constraints remain in place as a second safeguard. The validator adds readable messages, checks statuses that the current database schema does not constrain, and reports multiple issues in one run.
+
+### Run and try it
+
+Run the same command as Step 2:
+
+```powershell
+.\.venv\Scripts\python.exe load_data.py
+```
+
+The existing sample data passes, so the output remains the same. A failed test, an unrun test, and an uncovered requirement are valid data describing testing risks; they are not malformed records.
+
+To see an error, temporarily change the first test's status in `data/tests.json` from `PASS` to `Passed`, save, and run again:
+
+```text
+Data quality check failed: 1 issue(s)
+- tests.json row 1: invalid status 'Passed'; expected one of BLOCKED, FAIL, NOT_RUN, PASS
+Database not changed.
+```
+
+Restore `PASS` afterward. Validation does not automatically normalize, delete, or repair anything. All three files must pass before any database writes occur.
+
+Run the automated checks with:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest -v test_data_quality
+```
+
+### Scope of this step
+
+These are prototype data-quality rules, not a claim of regulatory compliance. Severity must be a nonblank string, but an allowed severity list has not been defined yet. IDs are compared exactly; records are not silently trimmed or renamed. Empty arrays are allowed as full snapshots, so three empty arrays would clear the stored records. Missing files and invalid JSON syntax still raise Python errors before database loading.
+
+### How to explain this in an interview
+
+“I added validation before loading the data. It checks required fields, duplicate IDs, allowed statuses, and requirement-to-test and test-to-defect links. It reports all detected issues with file and row details, and stops before opening the database if any checks fail. That gives someone clear corrections to make without replacing the last loaded data.”
+
 ## Next increments
 
-1. Add data-quality checks for missing IDs, invalid statuses, duplicate IDs, and broken links.
-2. Serve the sample data through local REST endpoints and build a small sync client.
-3. Add timeouts, safe retries, and sync outcome reporting.
-4. Build a dashboard with clearly defined metrics and supporting detail.
+1. Serve the sample data through local REST endpoints and build a small sync client.
+2. Add timeouts, safe retries, and sync outcome reporting.
+3. Build a dashboard with clearly defined metrics and supporting detail.
 
-Steps 1 and 2 are implemented. Each increment includes the reason for the change, a small verification, and an interview explanation. Ford's L2/L3/L4 definitions would need to be confirmed before modeling those testing levels.
+Steps 1 through 3 are implemented. Each increment includes the reason for the change, a small verification, and an interview explanation. Ford's L2/L3/L4 definitions would need to be confirmed before modeling those testing levels.

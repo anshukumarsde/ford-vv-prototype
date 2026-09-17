@@ -4,6 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+from data_quality import validate_data
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DATABASE_PATH = PROJECT_DIR / "vv.db"
@@ -75,6 +76,14 @@ def main():
     tests = read_records("tests.json")
     defects = read_records("defects.json")
 
+    errors = validate_data(requirements, tests, defects)
+    if errors:
+        print(f"Data quality check failed: {len(errors)} issue(s)")
+        for error in errors:
+            print(f"- {error}")
+        print("Database not changed.")
+        return 1
+
     connection = sqlite3.connect(DATABASE_PATH)
     try:
         connection.execute("PRAGMA foreign_keys = ON")
@@ -88,7 +97,8 @@ def main():
             print(f"{requirement_id}: {title}")
     finally:
         connection.close()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
