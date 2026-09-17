@@ -17,8 +17,8 @@ Browser -> api.py /report -> reporting.py -> vv.db -> dashboard.html
 Execution order:
 
 1. Python loads `api.py`.
-2. It imports paths and `read_records()` from `load_data.py`, plus `build_report()` from `reporting.py`.
-3. Importing these files defines their functions. It does not call `load_data.main()`.
+2. It defines the project and database paths and `read_records()`.
+3. It imports `build_report()` from `reporting.py`.
 4. `api.py` defines `SampleAPIHandler`.
 5. `ThreadingHTTPServer` opens `127.0.0.1:8000`.
 6. `serve_forever()` waits for requests.
@@ -39,12 +39,12 @@ Starting the server does not load SQLite.
 ## 2. Run the loader
 
 ```powershell
-.\.venv\Scripts\python.exe load_data.py --api-url http://127.0.0.1:8000
+.\.venv\Scripts\python.exe load_data.py
 ```
 
 ### 2.1 Parse arguments
 
-`argparse` reads `--api-url` and calls `main(api_url)`.
+The final block calls `main()`. Its default API URL is `http://127.0.0.1:8000`.
 
 ### 2.2 Fetch records
 
@@ -63,7 +63,7 @@ load_data.fetch_records()
   -> urlopen(full_url, timeout=10)
   -> api.SampleAPIHandler.do_GET()
   -> ROUTES selects a JSON filename
-  -> load_data.read_records(filename)
+  -> api.read_records(filename)
   -> json.load() reads data/*.json
   -> api.send_body() returns JSON
   -> fetch_records() parses and returns the list

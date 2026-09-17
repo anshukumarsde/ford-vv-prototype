@@ -3,10 +3,20 @@
 import json
 import sqlite3
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from load_data import DATABASE_PATH, PROJECT_DIR, read_records
 from reporting import build_report
+
+PROJECT_DIR = Path(__file__).resolve().parent
+DATABASE_PATH = PROJECT_DIR / "vv.db"
+
+
+def read_records(filename):
+    with (PROJECT_DIR / "data" / filename).open(encoding="utf-8") as source:
+        return json.load(source)
+
+
 ROUTES = {
     "/jama/requirements": "requirements.json",
     "/testrail/tests": "tests.json",

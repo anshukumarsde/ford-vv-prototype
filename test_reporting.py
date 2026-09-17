@@ -18,9 +18,9 @@ class ReportingTests(unittest.TestCase):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         self.database = Path(self.folder.name) / "test.db"
-        self.requirements = load_data.read_records("requirements.json")
-        self.tests = load_data.read_records("tests.json")
-        self.defects = load_data.read_records("defects.json")
+        self.requirements = api.read_records("requirements.json")
+        self.tests = api.read_records("tests.json")
+        self.defects = api.read_records("defects.json")
         self.save()
 
     def save(self):

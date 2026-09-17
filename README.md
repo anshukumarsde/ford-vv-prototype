@@ -30,7 +30,7 @@ Terminal 1 starts the server:
 Keep it running. Terminal 2 loads the data:
 
 ```powershell
-.\.venv\Scripts\python.exe load_data.py --api-url http://127.0.0.1:8000
+.\.venv\Scripts\python.exe load_data.py
 ```
 
 Expected output includes:

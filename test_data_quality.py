@@ -3,15 +3,16 @@
 import unittest
 from unittest.mock import patch
 
+import api
 import load_data
 from data_quality import validate_data
 
 
 class DataQualityTests(unittest.TestCase):
     def setUp(self):
-        self.requirements = load_data.read_records("requirements.json")
-        self.tests = load_data.read_records("tests.json")
-        self.defects = load_data.read_records("defects.json")
+        self.requirements = api.read_records("requirements.json")
+        self.tests = api.read_records("tests.json")
+        self.defects = api.read_records("defects.json")
 
     def validate(self):
         return validate_data(self.requirements, self.tests, self.defects)
@@ -51,7 +52,7 @@ class DataQualityTests(unittest.TestCase):
 
     def test_invalid_input_never_opens_database(self):
         self.tests[0]["status"] = "INVALID"
-        with patch.object(load_data, "read_records", side_effect=[
+        with patch.object(load_data, "fetch_records", side_effect=[
             self.requirements, self.tests, self.defects,
         ]), patch.object(load_data.sqlite3, "connect") as connect, \
                 patch("builtins.print"):

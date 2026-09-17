@@ -1,6 +1,5 @@
-"""Load sample records from files or a local API and report coverage gaps."""
+"""Load sample API records into SQLite and report coverage gaps."""
 
-import argparse
 import json
 import sqlite3
 from pathlib import Path
@@ -10,11 +9,7 @@ from data_quality import validate_data
 
 PROJECT_DIR = Path(__file__).resolve().parent
 DATABASE_PATH = PROJECT_DIR / "vv.db"
-
-
-def read_records(filename):
-    with (PROJECT_DIR / "data" / filename).open(encoding="utf-8") as source:
-        return json.load(source)
+API_URL = "http://127.0.0.1:8000"
 
 
 def fetch_records(base_url, endpoint):
@@ -86,16 +81,11 @@ def find_uncovered_requirements(connection):
     """).fetchall()
 
 
-def main(api_url=None):
+def main(api_url=API_URL):
     try:
-        if api_url:
-            requirements = fetch_records(api_url, "/jama/requirements")
-            tests = fetch_records(api_url, "/testrail/tests")
-            defects = fetch_records(api_url, "/jira/defects")
-        else:
-            requirements = read_records("requirements.json")
-            tests = read_records("tests.json")
-            defects = read_records("defects.json")
+        requirements = fetch_records(api_url, "/jama/requirements")
+        tests = fetch_records(api_url, "/testrail/tests")
+        defects = fetch_records(api_url, "/jira/defects")
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"Could not read source data: {error}")
         print("Database not changed.")
@@ -126,7 +116,4 @@ def main(api_url=None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--api-url", help="Read from this API instead of local files")
-    args = parser.parse_args()
-    raise SystemExit(main(args.api_url))
+    raise SystemExit(main())
