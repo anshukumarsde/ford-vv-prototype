@@ -3,9 +3,8 @@
 import unittest
 from unittest.mock import patch
 
-import api
-import load_data
-from data_quality import validate_data
+from src import api, load_data
+from src.data_quality import validate_data
 
 
 class DataQualityTests(unittest.TestCase):

@@ -8,9 +8,8 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
-import api
-import load_data
-from reporting import build_report
+from src import api, load_data
+from src.reporting import build_report
 
 
 class ReportingTests(unittest.TestCase):

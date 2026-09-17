@@ -6,9 +6,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from reporting import build_report
+from .reporting import build_report
 
-PROJECT_DIR = Path(__file__).resolve().parent
+SOURCE_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = SOURCE_DIR.parent
 DATABASE_PATH = PROJECT_DIR / "vv.db"
 
 
@@ -36,7 +37,7 @@ class SampleAPIHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlsplit(self.path)
         if parsed.path in ("/", "/dashboard"):
-            self.send_body((PROJECT_DIR / "dashboard.html").read_bytes(), "text/html; charset=utf-8")
+            self.send_body((SOURCE_DIR / "dashboard.html").read_bytes(), "text/html; charset=utf-8")
             return
         if parsed.path == "/report":
             try:

@@ -24,13 +24,13 @@ No additional packages are required. Open two PyCharm terminals in this project 
 Terminal 1 starts the server:
 
 ```powershell
-.\.venv\Scripts\python.exe api.py
+.\.venv\Scripts\python.exe -m src.api
 ```
 
 Keep it running. Terminal 2 loads the data:
 
 ```powershell
-.\.venv\Scripts\python.exe load_data.py
+.\.venv\Scripts\python.exe -m src.load_data
 ```
 
 Expected output includes:
@@ -48,11 +48,12 @@ Open <http://127.0.0.1:8000/dashboard>. After changing a file in `data/`, rerun 
 | File | Purpose |
 | --- | --- |
 | `data/*.json` | Fictional requirements, tests, and defects |
-| `api.py` | Serves the tool endpoints, report, and dashboard |
-| `load_data.py` | Fetches, validates, and loads the SQLite snapshot |
-| `data_quality.py` | Checks fields, IDs, statuses, and relationships |
-| `reporting.py` | Calculates metrics, traceability, and readiness |
-| `dashboard.html` | Displays the report |
+| `src/api.py` | Serves the tool endpoints, report, and dashboard |
+| `src/load_data.py` | Fetches, validates, and loads the SQLite snapshot |
+| `src/data_quality.py` | Checks fields, IDs, statuses, and relationships |
+| `src/reporting.py` | Calculates metrics, traceability, and readiness |
+| `src/dashboard.html` | Displays the report |
+| `tests/` | Contains validation, reporting, and HTTP flow tests |
 | `vv.db` | Generated SQLite database |
 
 ## Simulated endpoints
@@ -89,7 +90,7 @@ The demo reports ready only when requirements and tests exist, every requirement
 ## Run tests
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest -v
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
 ## Interview explanation

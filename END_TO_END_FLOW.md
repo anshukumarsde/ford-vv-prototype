@@ -3,15 +3,15 @@
 This document explains which code runs from startup through dashboard display.
 
 ```text
-data/*.json -> api.py endpoints -> load_data.py -> data_quality.py
+data/*.json -> src/api.py endpoints -> src/load_data.py -> src/data_quality.py
                                               -> vv.db
-Browser -> api.py /report -> reporting.py -> vv.db -> dashboard.html
+Browser -> src/api.py /report -> src/reporting.py -> vv.db -> src/dashboard.html
 ```
 
 ## 1. Start the server
 
 ```powershell
-.\.venv\Scripts\python.exe api.py
+.\.venv\Scripts\python.exe -m src.api
 ```
 
 Execution order:
@@ -39,7 +39,7 @@ Starting the server does not load SQLite.
 ## 2. Run the loader
 
 ```powershell
-.\.venv\Scripts\python.exe load_data.py
+.\.venv\Scripts\python.exe -m src.load_data
 ```
 
 ### 2.1 Parse arguments
