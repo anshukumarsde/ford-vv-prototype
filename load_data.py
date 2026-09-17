@@ -1,8 +1,10 @@
-"""Load the sample JSON files into SQLite and report coverage gaps."""
+"""Load sample records from files or a local API and report coverage gaps."""
 
+import argparse
 import json
 import sqlite3
 from pathlib import Path
+from urllib.request import urlopen
 
 from data_quality import validate_data
 
@@ -13,6 +15,11 @@ DATABASE_PATH = PROJECT_DIR / "vv.db"
 def read_records(filename):
     with (PROJECT_DIR / "data" / filename).open(encoding="utf-8") as source:
         return json.load(source)
+
+
+def fetch_records(base_url, endpoint):
+    with urlopen(base_url.rstrip("/") + endpoint, timeout=10) as response:
+        return json.load(response)
 
 
 def create_tables(connection):
@@ -71,10 +78,20 @@ def find_uncovered_requirements(connection):
     """).fetchall()
 
 
-def main():
-    requirements = read_records("requirements.json")
-    tests = read_records("tests.json")
-    defects = read_records("defects.json")
+def main(api_url=None):
+    try:
+        if api_url:
+            requirements = fetch_records(api_url, "/requirements")
+            tests = fetch_records(api_url, "/tests")
+            defects = fetch_records(api_url, "/defects")
+        else:
+            requirements = read_records("requirements.json")
+            tests = read_records("tests.json")
+            defects = read_records("defects.json")
+    except (OSError, ValueError) as error:
+        print(f"Could not read source data: {error}")
+        print("Database not changed.")
+        return 1
 
     errors = validate_data(requirements, tests, defects)
     if errors:
@@ -101,4 +118,7 @@ def main():
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--api-url", help="Read from this API instead of local files")
+    args = parser.parse_args()
+    raise SystemExit(main(args.api_url))

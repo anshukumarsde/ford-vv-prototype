@@ -4,7 +4,7 @@ A small learning project for explaining requirements, testing, traceability, and
 
 ## Step 1: Define the data and its relationships
 
-The goal of this step is to answer three questions using a small, readable dataset: which requirements have tests, which tests failed, and which defects relate to those failures. In Step 1, we created three JSON files; Step 2 below adds Python and SQLite. APIs and a dashboard are still future steps.
+The goal of this step is to answer three questions using a small, readable dataset: which requirements have tests, which tests failed, and which defects relate to those failures. Step 1 creates the JSON files, Step 2 adds SQLite, Step 3 adds validation, and Step 4 adds a local API. A dashboard is still a future step.
 
 This supports the job description's focus on **test data standardization** and **requirements-to-test traceability**. Defining consistent fields and links first gives later integrations and reports a common structure.
 
@@ -190,16 +190,55 @@ Run the automated checks with:
 
 ### Scope of this step
 
-These are prototype data-quality rules, not a claim of regulatory compliance. Severity must be a nonblank string, but an allowed severity list has not been defined yet. IDs are compared exactly; records are not silently trimmed or renamed. Empty arrays are allowed as full snapshots, so three empty arrays would clear the stored records. Missing files and invalid JSON syntax still raise Python errors before database loading.
+These are prototype data-quality rules, not a claim of regulatory compliance. Severity must be a nonblank string, but an allowed severity list has not been defined yet. IDs are compared exactly; records are not silently trimmed or renamed. Empty arrays are allowed as full snapshots, so three empty arrays would clear the stored records. Step 4 adds readable source-error reporting for missing files and invalid JSON before database loading.
 
 ### How to explain this in an interview
 
 “I added validation before loading the data. It checks required fields, duplicate IDs, allowed statuses, and requirement-to-test and test-to-defect links. It reports all detected issues with file and row details, and stops before opening the database if any checks fail. That gives someone clear corrections to make without replacing the last loaded data.”
 
+## Step 4: Read sample data through a local REST API
+
+**Goal:** demonstrate HTTP integration while reusing the validation, database loading, and coverage query already built.
+
+### Minimal changes and why
+
+- `api.py` serves three read-only GET endpoints: `/requirements`, `/tests`, and `/defects`. Each returns the corresponding JSON file. This simulates fetching engineering data from other tools without needing accounts.
+- `load_data.py` adds `fetch_records()` and an optional `--api-url` argument. It reads the HTTP responses as JSON, then follows the same validation and database workflow. Running without the argument still reads local files.
+- Requests have a 10-second socket timeout. HTTP errors, connection errors, and invalid JSON stop the load before opening SQLite and return exit code `1`. There are no automatic retries yet.
+
+Both files use only Python's standard library. The server binds to `127.0.0.1` for local use. This is a small learning server with simplified endpoints, not a production service or an implementation of the vendors' actual APIs. Authentication, pagination, and coordinated snapshots across requests are not implemented.
+
+```text
+JSON files -> local HTTP API -> fetch_records -> validate -> SQLite -> coverage report
+```
+
+### Run this step
+
+Open two terminals in the project folder. In terminal 1:
+
+```powershell
+.\.venv\Scripts\python.exe api.py
+```
+
+Leave it running. Open <http://127.0.0.1:8000/requirements> in your browser to see the requirements JSON. `/tests` and `/defects` expose the other records; unknown paths return HTTP 404.
+
+In terminal 2:
+
+```powershell
+.\.venv\Scripts\python.exe load_data.py --api-url http://127.0.0.1:8000
+```
+
+The result is still three requirements, three tests, one defect, and `REQ-003` as the only uncovered requirement. Only the way we obtain the records has changed.
+
+Stop the server with Ctrl+C in terminal 1. Running the API load again should report a source error and `Database not changed.` Start the server again to retry. If port 8000 is already occupied, stop the previous server using that port before starting this one.
+
+### How to explain this in an interview
+
+“I added a local REST API to simulate engineering tools. The loader requests requirements, tests, and defects over HTTP, validates the returned JSON, and loads the same reporting database. I kept data retrieval separate from validation and SQL so both file and API inputs reuse the same processing logic.”
+
 ## Next increments
 
-1. Serve the sample data through local REST endpoints and build a small sync client.
-2. Add timeouts, safe retries, and sync outcome reporting.
-3. Build a dashboard with clearly defined metrics and supporting detail.
+1. Add safe retries and sync outcome reporting.
+2. Build a dashboard with clearly defined metrics and supporting detail.
 
-Steps 1 through 3 are implemented. Each increment includes the reason for the change, a small verification, and an interview explanation. Ford's L2/L3/L4 definitions would need to be confirmed before modeling those testing levels.
+Steps 1 through 4 are implemented. Each increment includes the reason for the change, a small verification, and an interview explanation. Ford's L2/L3/L4 definitions would need to be confirmed before modeling those testing levels.
