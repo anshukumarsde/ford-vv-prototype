@@ -9,7 +9,7 @@
   h1 {margin:6px 0;font-size:32px} h2 {font-size:20px} p {line-height:1.5}
   .muted {color:#526477}.badge {color:#235d85;font-weight:700;font-size:13px;letter-spacing:1px}
   .toolbar {display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:22px 0}
-  button,select,input {font:inherit;padding:9px;border:1px solid #becbd7;border-radius:6px;background:white}
+  button,select {font:inherit;padding:9px;border:1px solid #becbd7;border-radius:6px;background:white}
   button {cursor:pointer}button:hover {background:#e3edf6}
   .cards {display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px}
   .card,section {background:white;border:1px solid #dae3ec;border-radius:10px;padding:18px;margin-bottom:16px}
@@ -27,7 +27,7 @@
 <header><span class="badge">V&amp;V TOOLCHAIN / LOCAL DEMO</span>
 <h1>Release overview</h1><p class="muted">Fictional engineering data. Demo readiness rules support review; they do not certify a release.</p></header>
 <div class="toolbar"><label>Release <select id="release"><option value="">All releases</option></select></label>
-<button id="refresh">Refresh report</button><button id="export" disabled>Export traceability CSV</button>
+<button id="refresh">Refresh report</button>
 <span class="muted" id="updated"></span></div>
 <p id="error" role="alert" hidden></p>
 <main id="content" hidden>
@@ -38,9 +38,7 @@
 <section><h2>Requirements without tests</h2><div id="uncovered" class="scroll"></div></section>
 <div class="grid"><section><h2>Tests needing attention</h2><div id="attention" class="scroll"></div></section>
 <section><h2>Open defects</h2><div id="defects" class="scroll"></div></section></div>
-<section><h2>Requirement to test to defect traceability</h2>
-<label>Search records <input id="search" placeholder="Requirement, test, defect or title"></label>
-<div id="trace" class="scroll"></div></section>
+<section><h2>Requirement to test to defect traceability</h2><div id="trace" class="scroll"></div></section>
 <section><h2>Snapshot quality checks</h2><div id="quality"></div>
 <p class="muted">Run the loader to fetch newer source data, then click Refresh report. The load timestamp is informational; source execution freshness is not evaluated.</p></section>
 </main>
@@ -62,7 +60,6 @@ function bar(container,label,count,total,cls='') {
   const track=element('div',undefined,'bar'), fill=element('div',undefined,'fill '+cls);
   fill.style.width=(total?100*count/total:0)+'%';track.append(fill);container.append(track);
 }
-function trace(){if(!report)return;const q=$('search').value.toLowerCase();table('trace',report.traceability.filter(r=>Object.values(r).some(v=>String(v??'').toLowerCase().includes(q))),traceColumns);}
 function render(){
   const m=report.metrics,pct=x=>x===null?'N/A':x+'%';$('metrics').replaceChildren();
   for(const [label,value,detail] of [
@@ -76,7 +73,8 @@ function render(){
   $('statuses').replaceChildren();Object.entries(report.statuses).forEach(([s,n])=>bar($('statuses'),s,n,m.tests,s));
   $('coverage').replaceChildren();bar($('coverage'),'Linked requirements',m.covered,m.requirements);
   table('uncovered',report.uncovered,['requirement_id','title']);table('attention',report.attention_tests,['test_id','requirement_id','status']);
-  table('defects',report.open_defects,['defect_id','test_id','severity','status']);trace();
+  table('defects',report.open_defects,['defect_id','test_id','severity','status']);
+  table('trace',report.traceability,traceColumns);
   $('quality').textContent=report.quality_issues.length?report.quality_issues.join('\n'):'No field or relationship issues detected in the loaded snapshot.';
   $('updated').textContent='Last successful load: '+(report.loaded_at??'unknown');
 }
@@ -88,17 +86,11 @@ async function refresh(){
     report=await response.json();const selected=$('release').value;
     $('release').replaceChildren(new Option('All releases',''),...report.releases.map(r=>new Option(r,r)));
     if(selected&&!report.releases.includes(selected))$('release').append(new Option(selected,selected));$('release').value=selected;
-    render();$('content').hidden=false;$('error').hidden=true;$('export').disabled=false;
-  }catch(e){report=null;$('content').hidden=true;$('export').disabled=true;$('error').textContent=e.message;$('error').hidden=false;}
+    render();$('content').hidden=false;$('error').hidden=true;
+  }catch(e){report=null;$('content').hidden=true;$('error').textContent=e.message;$('error').hidden=false;}
   finally{busy=false;}
 }
-$('refresh').onclick=refresh;$('release').onchange=refresh;$('search').oninput=trace;
-$('export').onclick=()=>{
-  if(!report)return;
-  const cell=value=>{let s=String(value??'');if(/^[=+@\-\t\r\n]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';};
-  const csv=[traceColumns,...report.traceability.map(r=>traceColumns.map(c=>r[c]))].map(row=>row.map(cell).join(',')).join('\r\n');
-  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=element('a');a.href=url;a.download='traceability.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-};
+$('refresh').onclick=refresh;$('release').onchange=refresh;
 refresh();
 </script>
 </html>

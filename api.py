@@ -7,13 +7,10 @@ from urllib.parse import parse_qs, urlsplit
 
 from load_data import DATABASE_PATH, PROJECT_DIR, read_records
 from reporting import build_report
-from vendor_mocks import mock_response
-
-
 ROUTES = {
-    "/requirements": "requirements.json",
-    "/tests": "tests.json",
-    "/defects": "defects.json",
+    "/jama/requirements": "requirements.json",
+    "/testrail/tests": "tests.json",
+    "/jira/defects": "defects.json",
 }
 
 
@@ -40,21 +37,7 @@ class SampleAPIHandler(BaseHTTPRequestHandler):
                 return
             self.send_body(json.dumps(report).encode("utf-8"), "application/json")
             return
-        if parsed.path.startswith("/mock/"):
-            try:
-                result = mock_response(self.path, read_records)
-            except (ValueError, KeyError, TypeError):
-                self.send_error(400, "Invalid page parameters or unsupported mock data")
-                return
-            except OSError:
-                self.send_error(500, "Could not read mock data")
-                return
-            if result is None:
-                self.send_error(404, "Unknown mock endpoint")
-            else:
-                self.send_body(json.dumps(result).encode("utf-8"), "application/json")
-            return
-        filename = ROUTES.get(urlsplit(self.path).path)
+        filename = ROUTES.get(parsed.path)
         if filename is None:
             self.send_error(404, "Unknown endpoint")
             return
