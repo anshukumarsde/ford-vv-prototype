@@ -2,6 +2,66 @@
 
 A small learning project for explaining requirements, testing, traceability, and reporting in an interview. All records are fictional; these files are simplified stand-ins for Jama, TestRail, and Jira, not their actual API schemas.
 
+## Application summary
+
+This application demonstrates a small Verification and Validation (V&V) reporting workflow. It connects requirements, tests, and defects so you can see which requirements have test coverage, which tests need attention, and which defects block readiness under the demo rules.
+
+The local API simulates Jama, TestRail, and Jira response formats. A Python loader fetches the records, handles pagination in vendor mock mode, checks data quality, and saves a complete snapshot to SQLite. The browser dashboard reads that database and displays coverage and execution charts, release filters, readiness checks, searchable traceability, and CSV export.
+
+```text
+Sample JSON files -> Mock tool APIs -> Python loader and validation -> SQLite -> Browser dashboard
+```
+
+Invalid input stops the load before changing the database. The dashboard uses explicit demo rules, including complete test coverage, passing tests, and no open high or critical defects. It is an interview prototype, not a connection to real vendor accounts or a formal release approval system.
+
+## Quick start
+
+Use the project's existing Python virtual environment. No additional packages are required; the application uses Python's standard library. Open two PyCharm terminal tabs in the project folder:
+
+```powershell
+cd "C:\Users\Anshu Kumar\PycharmProjects\PythonProject"
+```
+
+If setting up a fresh checkout without `.venv`, create it once with `python -m venv .venv` using an installed Python interpreter.
+
+### 1. Start the API in terminal 1
+
+```powershell
+.\.venv\Scripts\python.exe api.py
+```
+
+Leave this terminal running. If an older copy of the server is running, stop it with Ctrl+C before starting the updated code.
+
+### 2. Load data in terminal 2
+
+```powershell
+.\.venv\Scripts\python.exe load_data.py --api-url http://127.0.0.1:8000 --vendor-mocks
+```
+
+This fetches all three mock services, validates the records, creates or refreshes `vv.db`, and reports uncovered requirements. The provided sample contains three requirements, three tests, and one defect; `REQ-003` has no linked test.
+
+### 3. Open the dashboard
+
+Open <http://127.0.0.1:8000/dashboard> in your browser. The sample shows 66.7% requirement coverage, 66.7% test execution, a 50% pass rate among executed tests, and one open defect. It correctly reports **NOT READY UNDER DEMO RULES**.
+
+After editing files in `data/`, rerun the loader in terminal 2 and click **Refresh report** in the dashboard. Refreshing the page alone does not fetch source data into SQLite. Each successful load replaces the stored snapshot, including removing records deleted from the source files.
+
+### Other useful commands
+
+Load directly from JSON without using the API:
+
+```powershell
+.\.venv\Scripts\python.exe load_data.py
+```
+
+The API must still be running to view the dashboard. Run all automated checks with:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest -v
+```
+
+Stop the server with **Ctrl+C** in terminal 1 when finished. If the dashboard reports that its database is unavailable, run the loader successfully first. If an API load fails, confirm that terminal 1 is still running the latest `api.py`.
+
 ## Step 1: Define the data and its relationships
 
 The goal of this step is to answer three questions using a small, readable dataset: which requirements have tests, which tests failed, and which defects relate to those failures. Step 1 creates the JSON files, Step 2 adds SQLite, Step 3 adds validation, and Step 4 adds a local API. Steps 5 and 6 below add vendor-shaped mocks and a browser dashboard.
