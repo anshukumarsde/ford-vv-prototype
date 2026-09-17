@@ -1,9 +1,0 @@
-[
-  {
-    "defect_id": "BUG-3001",
-    "test_id": "TC-2003",
-    "summary": "Battery health value displayed incorrectly",
-    "severity": "HIGH",
-    "status": "OPEN"
-  }
-]
