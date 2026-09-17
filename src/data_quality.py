@@ -6,10 +6,12 @@ DEFECT_STATUSES = {"OPEN", "IN_PROGRESS", "CLOSED"}
 
 def check_records(records, filename, fields, errors, statuses=None):
     """Check one file and return its usable rows and unique IDs."""
+    # Each source endpoint must return a JSON array, represented here as a list.
     if not isinstance(records, list):
         errors.append(f"{filename}: expected a JSON array of records")
         return [], set()
 
+    # A set makes duplicate-ID checks fast and also supports relationship checks.
     ids = set()
     rows = []
     id_field = fields[0]
@@ -19,17 +21,20 @@ def check_records(records, filename, fields, errors, statuses=None):
             errors.append(f"{location}: expected a JSON object")
             continue
         rows.append((location, record))
+        # Every field listed by the caller is required and must contain text.
         for field in fields:
             value = record.get(field)
             if not isinstance(value, str) or not value.strip():
                 errors.append(f"{location}: {field} must be a nonblank string")
 
+        # The first required field is the unique ID for this type of record.
         record_id = record.get(id_field)
         if isinstance(record_id, str) and record_id.strip():
             if record_id in ids:
                 errors.append(f"{location}: duplicate {id_field} {record_id!r}")
             ids.add(record_id)
 
+        # Status validation applies only when the caller supplies allowed values.
         status = record.get("status")
         if statuses and isinstance(status, str) and status.strip():
             if status not in statuses:
@@ -43,6 +48,8 @@ def check_records(records, filename, fields, errors, statuses=None):
 def validate_data(requirements, tests, defects):
     """Return all detected problems; an empty list means validation passed."""
     errors = []
+
+    # Validate each dataset independently and collect its valid IDs.
     _, requirement_ids = check_records(
         requirements, "requirements.json",
         ("requirement_id", "title", "release"), errors,
@@ -57,6 +64,7 @@ def validate_data(requirements, tests, defects):
         errors, DEFECT_STATUSES,
     )
 
+    # Validate relationships after all parent IDs have been collected.
     for rows, field, parent_ids in (
         (test_rows, "requirement_id", requirement_ids),
         (defect_rows, "test_id", test_ids),

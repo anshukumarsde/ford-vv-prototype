@@ -7,17 +7,20 @@ from urllib.request import urlopen
 
 from src.data_quality import validate_data
 
+# The database belongs in the project root rather than inside the source folder.
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DATABASE_PATH = PROJECT_DIR / "vv.db"
 API_URL = "http://127.0.0.1:8000"
 
 
 def fetch_records(base_url, endpoint):
+    """Request one endpoint and decode its JSON response."""
     with urlopen(base_url.rstrip("/") + endpoint, timeout=10) as response:
         return json.load(response)
 
 
 def create_tables(connection):
+    """Create the reporting tables and lookup index when they do not exist."""
     connection.executescript("""
         CREATE TABLE IF NOT EXISTS requirements (
             requirement_id TEXT PRIMARY KEY NOT NULL,
@@ -47,6 +50,7 @@ def create_tables(connection):
 
 
 def load_snapshot(connection, requirements, tests, defects):
+    """Replace the previous database snapshot with the validated records."""
     # Commit all three loads together, or roll back if any record fails.
     with connection:
         # Delete children first; insert parents first to preserve valid links.
@@ -72,6 +76,8 @@ def load_snapshot(connection, requirements, tests, defects):
 
 
 def find_uncovered_requirements(connection):
+    """Return requirements that have no matching test record."""
+    # LEFT JOIN keeps every requirement; NULL identifies those with no test.
     return connection.execute("""
         SELECT r.requirement_id, r.title
         FROM requirements r
@@ -82,6 +88,9 @@ def find_uncovered_requirements(connection):
 
 
 def main(api_url=API_URL):
+    """Run the complete fetch, validate, load, and coverage-report workflow."""
+    # Fetch all sources before opening SQLite, so a source failure cannot
+    # partially refresh the stored snapshot.
     try:
         requirements = fetch_records(api_url, "/jama/requirements")
         tests = fetch_records(api_url, "/testrail/tests")
@@ -91,6 +100,7 @@ def main(api_url=API_URL):
         print("Database not changed.")
         return 1
 
+    # Validate the complete cross-system dataset before any database writes.
     errors = validate_data(requirements, tests, defects)
     if errors:
         print(f"Data quality check failed: {len(errors)} issue(s)")
@@ -99,8 +109,10 @@ def main(api_url=API_URL):
         print("Database not changed.")
         return 1
 
+    # Only valid records reach the database-loading stage.
     connection = sqlite3.connect(DATABASE_PATH)
     try:
+        # SQLite requires foreign-key enforcement to be enabled per connection.
         connection.execute("PRAGMA foreign_keys = ON")
         create_tables(connection)
         load_snapshot(connection, requirements, tests, defects)
@@ -116,4 +128,5 @@ def main(api_url=API_URL):
 
 
 if __name__ == "__main__":
+    # Return the workflow result as the process exit code for future automation.
     raise SystemExit(main())

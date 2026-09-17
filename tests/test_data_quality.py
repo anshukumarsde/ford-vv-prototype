@@ -8,18 +8,24 @@ from src.data_quality import validate_data
 
 
 class DataQualityTests(unittest.TestCase):
+    """Verify validation rules and protection of the existing database."""
+
     def setUp(self):
+        # Each test gets fresh lists because several tests intentionally mutate them.
         self.requirements = api.read_records("requirements.json")
         self.tests = api.read_records("tests.json")
         self.defects = api.read_records("defects.json")
 
     def validate(self):
+        """Run the validator against the current test records."""
         return validate_data(self.requirements, self.tests, self.defects)
 
     def test_valid_samples_allow_failed_unrun_and_uncovered_tests(self):
+        # Business risks are valid records; they belong in reports, not parse errors.
         self.assertEqual(self.validate(), [])
 
     def test_reports_multiple_problems_together(self):
+        # Introduce unrelated errors and confirm they are reported in one pass.
         self.requirements.append(dict(self.requirements[0]))
         self.tests[0]["test_id"] = " "
         self.tests[0]["status"] = "Passed"
@@ -35,11 +41,13 @@ class DataQualityTests(unittest.TestCase):
             self.assertIn(expected, errors)
 
     def test_duplicate_ids_in_each_entity(self):
+        # IDs must be unique within requirements, tests, and defects.
         for records in (self.requirements, self.tests, self.defects):
             records.append(dict(records[0]))
         self.assertEqual(len(self.validate()), 3)
 
     def test_malformed_shapes_and_fields_report_errors(self):
+        # Exercise wrong collection shapes, row shapes, types, and missing fields.
         self.assertTrue(validate_data({}, [], []))
         self.assertTrue(validate_data([None], [], []))
         for invalid in (None, "", "   ", 123, [], {}):
@@ -50,6 +58,7 @@ class DataQualityTests(unittest.TestCase):
         self.assertIn("title must be a nonblank string", "\n".join(self.validate()))
 
     def test_invalid_input_never_opens_database(self):
+        # Mock the API responses and prove validation stops before sqlite3.connect.
         self.tests[0]["status"] = "INVALID"
         with patch.object(load_data, "fetch_records", side_effect=[
             self.requirements, self.tests, self.defects,
