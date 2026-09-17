@@ -184,3 +184,33 @@ Edit and save data/*.json
 ## Short interview explanation
 
 > The server exposes three fictional tool endpoints. The loader fetches all records, validates them, and replaces a SQLite snapshot in one transaction. The browser requests a report calculated from that snapshot and displays coverage, execution, defects, traceability, and readiness blockers.
+
+## Interview-ready end-to-end explanation
+
+Use this answer when the interviewer asks you to explain the application:
+
+> I built a small V&V reporting pipeline that simulates integrations with Jama, TestRail, and Jira.
+>
+> The application starts with three fictional JSON datasets containing requirements, tests, and defects. A local Python server exposes them through separate REST endpoints representing the three tools.
+>
+> A Python loader calls those endpoints and collects all three datasets. Before writing anything, it validates required fields, duplicate IDs, allowed statuses, and relationships. For example, every test must reference an existing requirement, and every defect must reference an existing test.
+>
+> If validation fails, the loader reports the problems and leaves the existing database unchanged. If validation succeeds, it replaces the SQLite snapshot in one transaction. Primary keys prevent duplicate IDs, and foreign keys protect the requirement-to-test and test-to-defect relationships.
+>
+> The reporting layer reads SQLite and calculates requirement coverage, test execution, pass rate, open defects, and release-readiness blockers. It also uses SQL joins to build end-to-end traceability from requirements to tests to defects.
+>
+> The browser dashboard requests those calculated results from a report endpoint and displays the KPIs, uncovered requirements, tests needing attention, open defects, and traceability.
+>
+> The overall flow is REST APIs to validation to SQLite to reporting to dashboard. In production, I would replace the fictional endpoints with authenticated Jama, TestRail, and Jira clients and add pagination, retries, incremental synchronization, scheduled execution, and organization-approved readiness rules.
+
+### If asked what happens when you run it
+
+1. Start `src.api`. It serves the three simulated tool endpoints, the report endpoint, and the dashboard.
+2. Run `src.load_data`. It fetches, validates, and stores a complete snapshot.
+3. Open the dashboard. Its JavaScript requests `/report`.
+4. `reporting.py` reads SQLite and returns calculated results.
+5. The dashboard renders the metrics and supporting records.
+
+### If asked why it is separated this way
+
+> I separated data retrieval, validation, persistence, reporting, and presentation so each part has one clear responsibility and can change independently. For example, authenticated Jama, TestRail, and Jira clients could replace the simulated endpoints without changing the validation rules, database model, or SQL reporting logic.

@@ -19,7 +19,7 @@ REQ-002    -> TEST-002 -> BUG-001
 
 ## Run the application
 
-No additional packages are required. Open two PyCharm terminals in this project folder.
+No additional packages are required. Run the commands below from the project root folder so Python can resolve the `src` modules. Open two PyCharm terminals in this folder.
 
 Terminal 1 starts the server:
 
@@ -37,6 +37,7 @@ Expected output includes:
 
 ```text
 Loaded 3 requirements, 3 tests, and 1 defects into vv.db.
+
 Requirements without tests: 1
 REQ-003: Display the rear camera view when reverse is selected
 ```
@@ -85,7 +86,7 @@ WHERE t.test_id IS NULL;
 
 The dashboard shows requirement coverage, test execution, pass rate, open defects, records needing attention, and requirement-to-test-to-defect traceability.
 
-The demo reports ready only when requirements and tests exist, every requirement has a test, every planned test passed, no high or critical defect remains open, and the snapshot passes validation. These are example rules, not official Ford policy.
+The demo reports ready only when requirements and tests exist, every requirement has a test, every planned test passed, no high or critical defect is open or in progress, and the snapshot passes validation with recognized severities. These are example rules, not official Ford policy.
 
 ## Run tests
 

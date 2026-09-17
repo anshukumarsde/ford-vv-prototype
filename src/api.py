@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from .reporting import build_report
+from src.reporting import build_report
 
 SOURCE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = SOURCE_DIR.parent

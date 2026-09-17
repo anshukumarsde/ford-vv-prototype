@@ -5,7 +5,7 @@ import sqlite3
 from pathlib import Path
 from urllib.request import urlopen
 
-from .data_quality import validate_data
+from src.data_quality import validate_data
 
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 DATABASE_PATH = PROJECT_DIR / "vv.db"

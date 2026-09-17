@@ -2,7 +2,7 @@
 
 import sqlite3
 
-from .data_quality import validate_data
+from src.data_quality import validate_data
 
 
 def build_report(database_path, release=None):
