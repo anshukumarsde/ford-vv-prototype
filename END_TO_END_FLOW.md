@@ -42,7 +42,7 @@ Starting the server does not load SQLite.
 .\.venv\Scripts\python.exe -m src.load_data
 ```
 
-### 2.1 Parse arguments
+### 2.1 Start the loader
 
 The final block calls `main()`. Its default API URL is `http://127.0.0.1:8000`.
 
@@ -65,7 +65,7 @@ load_data.fetch_records()
   -> ROUTES selects a JSON filename
   -> api.read_records(filename)
   -> json.load() reads data/*.json
-  -> api.send_body() returns JSON
+  -> SampleAPIHandler.send_body() returns JSON
   -> fetch_records() parses and returns the list
 ```
 
@@ -163,7 +163,7 @@ The **Refresh report** button repeats this report request. It rereads SQLite but
 
 ```text
 Edit and save data/*.json
-  -> run load_data.py again
+  -> run python -m src.load_data again
   -> endpoints read the changed files
   -> validation runs
   -> SQLite snapshot is replaced
